@@ -1,0 +1,12 @@
+name = "Node Embed"
+description = "Module providing an embed node widget"
+package = "Other"
+core = 6.x
+
+
+; Information added by drupal.org packaging script on January 1, 1970 - 00:00
+version = "6.x-1.4"
+core = "6.x"
+project = "node_embed"
+datestamp = "1297098740"
+

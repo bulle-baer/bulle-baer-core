@@ -1,0 +1,13 @@
+; $Id $
+name = MLT - Yahoo! BOSS
+package = "More Like This"
+description = "Provides a Yahoo! BOSS Web, News, and Image custom search based lookup"
+core = 6.x
+dependencies[] = morelikethis
+
+; Information added by drupal.org packaging script on 2009-02-23
+version = "6.x-1.1"
+core = "6.x"
+project = "morelikethis"
+datestamp = "1235395233"
+

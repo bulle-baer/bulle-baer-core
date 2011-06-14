@@ -1,0 +1,129 @@
+<?php
+/*
+  Copyright (C) 2008 by Phase2 Technology.
+  Author(s): Frank Febbraro
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY. See the LICENSE.txt file for more details.
+
+  $Id: morelikethis_taxonomy.module,v 1.1.2.4 2009/01/06 21:30:33 emackn Exp $
+*/
+/**
+ * @file morelikethis_taxonomy.module
+ *
+ * Attempt to find internal nodes that are like the provided node. Use the list of terms 
+ * provided in the morelikethis DNA to search the taxonomy for other nodes matching these terms.
+ */
+
+function morelikethis_taxonomy_theme() {
+  $theme = array();
+  $theme["morelikethis_taxonomy_item"] = array(
+    'arguments' => array('item' => NULL),
+  );
+  return $theme;
+}
+
+/**
+ * Implementation of hook_morelikethis().
+ */
+function morelikethis_taxonomy_morelikethis() {
+  return array(
+    'taxonomy' => array(
+      '#title' => 'Taxonomy',
+      '#description' => 'Find other content based on Taxonomy matching',
+      '#class' => 'MoreLikeThisTaxonomy',
+      '#classfile' => 'morelikethis_taxonomy.class.inc',
+      //'#classfilepath' => 'xxx/yyy/zzz',
+      '#settings' => 'morelikethis_taxonomy_settings',
+    ),
+  );
+}
+
+/**
+ * Theme an individual morelikethis item.
+ *
+ * @param $item
+ *    An More Like This object for the provided node.
+ */
+function theme_morelikethis_taxonomy_item($item) {
+  $percentage = sprintf('%.1f%%', $item->relevance * 100);
+  return l("$item->title ($percentage)", $item->url);
+}
+
+/**
+ * Settings for More Like This Taxonomy functionality.
+ */
+function morelikethis_taxonomy_settings() {
+  
+  node_types_rebuild();
+  $types = node_get_types('types', NULL, TRUE);
+  
+  $options = array();
+  foreach ($types as $type) {
+    $options[$type->type] = $type->name;
+  }
+  
+  $form = array();
+  foreach ($types as $type) {
+    $key = drupal_strtolower($type->type);
+    $name = $type->name;
+    $param_name = array('@name' => $name);
+    
+    $form['morelikethis_tax_description'] = array(
+      '#prefix' => '<h4>',
+      '#suffix' => '</h4>',
+      '#value' => t('More Like This Taxonomy allows you to define the types/amount/relevancy of related nodes presented while actively viewing the <em>node at hand</em>.'),
+      );  
+      
+    $form['morelikethis_tax_example'] = array(
+      '#prefix' => '<p style="font-size:10px">',
+      '#suffix' => '</p>',
+      '#value' => t('Node Relevancy = (# of applied MLT terms for <em>node at hand</em> matching  applied Calais terms) / (total # of applied MLT terms for <em>node at hand</em>)<br/> For example, if 2 of 3 applied MLT terms for the <em>node at hand</em> matched the applied Calais terms for another node, the relevancy score would be 0.67.'),
+    );
+    $form["morelikethis_{$key}"] = array(
+      '#type' => 'fieldset',
+      '#title' => t('@name', $param_name),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+      '#description' => t('Define the parameters used to identify related content 
+        when the <em>node at hand</em> is of this type.'),
+    );
+
+    $form["morelikethis_{$key}"]["morelikethis_taxonomy_enabled_{$key}"] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Enable More Like This Taxonomy'),
+      '#default_value' => variable_get("morelikethis_taxonomy_enabled_{$key}", FALSE),
+      '#description' => t('Enable More Like This functionality for this content type.'),
+    );
+    $form["morelikethis_{$key}"]["morelikethis_taxonomy_target_types_{$key}"] = array(
+      '#type' => 'select',
+      '#title' => t('Target Content Types'),
+      '#default_value' => variable_get("morelikethis_taxonomy_target_types_{$key}", NULL),
+      '#options' => $options,
+      '#multiple' => TRUE,
+      '#size' => 4,
+      '#description' => t('Choose which content types should be included in the search for nodes having MLT terms in common with this particular node.'),
+    );
+    $form["morelikethis_{$key}"]["morelikethis_taxonomy_count_{$key}"] = array(
+      '#type' => 'textfield',
+      '#title' => t('Number of results'),
+      '#size' => 4,
+      '#maxlength' => 4,
+      '#default_value' => variable_get("morelikethis_taxonomy_count_{$key}", '10'),
+      '#description' => t('Define the maximum number of results that can be returned by More Like This.'),
+    );
+    $form["morelikethis_{$key}"]["morelikethis_taxonomy_threshold_{$key}"] = array(
+      '#type' => 'textfield',
+      '#size' => 6,
+      '#maxlength' => 6,
+      '#title' => t('Node Relevancy Threshold for MLT Taxonomy'),
+      '#default_value' => variable_get("morelikethis_taxonomy_threshold_{$key}", NULL),
+      '#description' => t('Set a minimum relevancy score that must be met in order for a match to be created.  Uses a 0.00-1.00 scale based on percentage of matching terms, 0.00 being least relevant (i.e. large number of loosely-related matches returned).'),
+    );
+  }
+    
+  return system_settings_form($form);
+}
+

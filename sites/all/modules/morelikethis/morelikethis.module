@@ -1,0 +1,584 @@
+<?php
+/*
+  Copyright (C) 2008 by Phase2 Technology.
+  Author(s): Frank Febbraro
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY. See the LICENSE.txt file for more details.
+
+  $Id: morelikethis.module,v 1.1.2.14 2009/02/18 19:24:30 febbraro Exp $
+*/
+/**
+ * @file morelikethis.module
+ * TODO:  - Configurability to prepoulate over a calais threshold
+ *        - Add more pluggable services:
+ *          - an internal calais search
+ *          - internal drupal search
+ *          - apache solr search
+ *          - any other mechanism that could be imagined
+ */
+
+define('MORELIKETHIS_DEFAULT_RELEVANCE', '0.500');
+
+/**
+ * Implementation of hook_perm().
+ */
+function morelikethis_perm() {
+  return array('administer morelikethis');
+}
+
+/**
+ * Implementation of hook_theme().
+ */
+function morelikethis_theme() {
+  $theme = array(
+    'morelikethis_block' => array(
+      'arguments' => array('items' => NULL),
+    ),
+    'morelikethis_item' => array(
+      'arguments' => array('item' => NULL),
+    ),
+  );
+  return $theme;
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function morelikethis_menu() {
+ 
+  $items = array();
+  $access = array('administer morelikethis');
+
+  $services = _morelikethis_providers();
+  if (count($services) == 0)
+    return $items;
+  
+  $items['admin/settings/morelikethis'] = array(
+    'title' => 'More Like This settings',
+    'description' => 'Configuration for More Like This.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('morelikethis_settings'),
+    'access arguments' => $access,
+    'file' => 'morelikethis.admin.inc',
+  );
+  $items['admin/settings/morelikethis/general'] = array(
+    'title' => 'General',
+    'weight' => -1,
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+  );
+  
+  foreach ( $services as $service => $definition ) {  
+    if(isset($definition['#settings'])) {
+      $items['admin/settings/morelikethis/' . $service] = array(
+        'title' => $definition['#title'],
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array($definition['#settings']),
+        'access arguments' => $access,
+        'type' => MENU_LOCAL_TASK,
+      );
+    }
+  }
+  
+  return $items;
+}
+
+/**
+ * Implementation of hook_autoload_info().
+ *
+ * This is used to load the MoreLikeThis classes for executing searches 
+ * without having to explicitly include files.
+ */
+function morelikethis_autoload_info() {
+  $autoload = array(
+    'MoreLikeThis' => array(
+      'file' => 'morelikethis.class.inc',
+    ),
+    'MoreLikeThisBase' => array(
+      'file' => 'morelikethis.class.inc',
+    ),
+  );
+
+  $services = _morelikethis_providers();
+  foreach ( $services as $service => $definition ) {  
+    $class = $definition['#class'];
+    $file = $definition['#classfile'];
+    $filepath = isset($definition['#classfilepath']) 
+                  ? $definition['#classfilepath'] 
+                  : drupal_get_path('module', $definition['#module']);
+    $autoload[$class] = array(
+      'file' => $file,
+      'file path' => $filepath,
+    );
+  }
+  
+  return $autoload;
+}
+
+/**
+ * Get all enabled morelikethis providers. Do some caching to avoid useless DB calls.
+ *
+ * Providers can define themselves by implementing hook_morelikethis().
+ *
+ * The implementing hooks should return an array of items keyed on the module or
+ * provider "type" (e.g. "taxonomy", "opencalais", etc.) with key-value pairs. 
+ *
+ * '#title'         : Required. The title of the more like this provider/service.
+ * '#description'   : Optional. Description of the service.
+ * '#class'         : Required. The PHP class that implements the MoreLikeThis interface
+ * '#classfile'     : Required. The file name that contains the MoreLikeThis implementing class.
+ * '#classfilepath' : Optional. The path to the '#classfile' file if not in the root of the module.
+ * '#settings'      : Optional. The name of the FormAPI form method to configure the service.
+ *
+ * @param $reset
+ *    Should this request rebuild the cache.
+ * @return
+ *    An array of More Like This providers.
+ */
+function _morelikethis_providers($reset = FALSE) {
+  static $providers;
+  if($reset) {
+    $providers = NULL;
+  }
+  
+  if(isset($providers)) {
+    return $providers;
+  }
+  else if (!$reset && ($cache = cache_get('morelikethis_providers')) && isset($cache->data)) {
+    $providers = $cache->data;
+    return $providers;
+  }
+  
+  $providers = array();
+  foreach (module_implements('morelikethis') as $module) {
+    $provider_details = call_user_func($module .'_morelikethis');
+    if (isset($provider_details) && is_array($provider_details)) {
+      foreach (array_keys($provider_details) as $item) {
+        $provider_details[$item]['#module'] = $module;
+      }
+      $providers = array_merge($providers, $provider_details);
+    }
+  }
+  cache_set('morelikethis_providers', $providers);
+  return $providers;
+}
+
+/**
+ * Implementation of hook_block().
+ */
+function morelikethis_block($op = 'list', $delta = 0, $edit = array()) {
+
+  switch ($op) {
+    case 'list':
+      return _mlt_block_list();
+      break;
+    case 'view':
+      return _mlt_block_view($delta);
+      break;
+  }
+}
+
+/**
+ * Provide block listing.
+ */
+function _mlt_block_list(){
+  $blocks = array();  
+  
+  $services = _morelikethis_providers();
+  foreach ( $services as $service => $definition ) {
+    $blocks[$service] = array(
+      'info' => t('More Like This @name Block', array('@name' => $definition['#title'])),
+      'cache' => BLOCK_CACHE_PER_PAGE,
+    );
+  }
+  
+  return $blocks;
+}
+
+/**
+ * Display the More Like This blocks.
+ */
+function _mlt_block_view($delta){
+  if(arg(0) == 'node' && is_numeric(arg(1))) {
+    $services = _morelikethis_providers();
+    $service = $services[$delta];
+    
+    if($service) {
+      $class = $service['#class'];
+      $impl = new $class;
+      
+      $node = node_load(arg(1));
+
+      if($impl->isEnabled($node->type) && _morelikethis_node_enabled($node, $delta)) {
+        $block['subject'] = t($service['#title']);
+        $more = morelikethis_find(arg(1), $delta);    
+        $block['content'] = theme(array("morelikethis_{$delta}_block", 'morelikethis_block'), $more);
+      }
+    }
+  }
+  return $block;
+}
+
+/**
+ * Load MLT term data for a node
+ */
+function morelikethis_load($vid) {
+  $result = db_query("SELECT term FROM {morelikethis} WHERE vid = %d ORDER BY term ASC", $vid);
+  $terms = array();
+  while($term = db_result($result)) {
+    $terms[] = $term;
+  }
+  return $terms;
+}
+
+/**
+ * Save the data used to render the morelikethis terms.
+ */
+function morelikethis_save($node, $data) {
+  db_query('DELETE FROM {morelikethis} WHERE nid = %d', $node->nid);
+  $terms = drupal_explode_tags($data['terms']);
+  foreach($terms as $term) {
+    db_query("INSERT INTO {morelikethis} (nid, vid, term) VALUES (%d, %d, '%s')", $node->nid, $node->vid, $term);
+  }
+
+  // save per node contrib module settings
+  _save_mlt_node_settings($node);
+}
+
+/**
+ * Save the per node enabled contrib modules.
+ *
+ * @param object $node
+ *  from nodeapi.
+ */
+function _save_mlt_node_settings($node) {
+  db_query('DELETE FROM {morelikethis_node_settings} WHERE nid = %d', $node->nid);
+
+  $contribs = $node->morelikethis['enabled-contribs'] ? $node->morelikethis['enabled-contribs'] : array();
+  $settings = serialize(array_values($contribs));
+  $params = array($node->vid, $node->nid, $settings, $node->morelikethis['prefill-with-calais']);
+  $sql = "INSERT INTO {morelikethis_node_settings} (vid, nid, contribs_enabled, prefill_with_calais) VALUES (%d, %d, '%s', %d)";
+  $result = db_query($sql, $params);
+}
+
+
+/**
+ * Find all morelikethis results for all enabled services.
+ */
+function morelikethis_find_all($nid) {
+  static $morelikethis;
+  
+  if(isset($morelikethis[$nid])) {
+    return $morelikethis[$nid];
+  }
+  
+  $services = _morelikethis_providers();
+  foreach ( $services as $service => $definition ) {
+    $morelikethis[$nid][$service] = morelikethis_find($nid, $service);
+  }  
+  return $morelikethis[$nid];
+}
+
+/**
+ * Invoke the morelikethis lookup for a particular enabled service.
+ *
+ * @param nid
+ *    The node id to find related content
+ * @param $service
+ *    The key identifying the morelikethis service to invoke.
+ * @see 
+ *    hook_morelikethis()
+ * 
+ * I did not include the _morelikethis_node_enabled check here since the check
+ * happens before the block content can be rendered.
+ */
+function morelikethis_find($nid, $service = NULL) {
+  static $morelikethis;
+    
+  if(isset($morelikethis[$nid][$service])) {
+    return $morelikethis[$nid][$service];
+  }
+
+  $node = node_load($nid);
+
+  $terms = morelikethis_load($node->vid);
+  $term_count = count($terms);
+  
+  if($term_count == 0)
+    return FALSE;
+  
+  $services = _morelikethis_providers();
+  
+  $class = $services[$service]['#class'];
+  $impl = new $class;
+  
+  if($impl->isEnabled($node->type)) {
+    $impl->init($terms, $node);
+    $morelikethis[$nid][$service] = $impl->find();    
+  }
+  return $morelikethis[$nid][$service];
+}
+
+/**
+ * Implementation of hook_form_alter().
+ *
+ * Add the More Like This fields to the node edit form.
+ */
+function morelikethis_form_alter(&$form, $form_state, $form_id) {
+  
+  if (isset($form['type']) && isset($form['#node']) && $form['type']['#value'] .'_node_form' == $form_id) {
+    $node = $form['#node'];
+    $key = drupal_strtolower($node->type);
+    
+    if(!_morelikethis_is_enabled($key))
+      return;
+        
+    if($node->taxonomy) {
+      $options = array();
+      foreach ($node->taxonomy as $term) {
+        $vocab = taxonomy_vocabulary_load($term->vid);
+        $key = $vocab->name;
+        
+        if(!array_key_exists($key, $options)) {
+          $options[$key] = array();
+        }
+        // Remove quotes surrounding terms
+        $term_name = preg_replace('/^"(.*)"$/', '\1', $term->name);
+        $options[$key][$term_name] = $term_name;
+      }
+    }
+        
+    drupal_add_js(drupal_get_path('module', 'morelikethis') .'/morelikethis.js');
+    
+    $form['morelikethis'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('More Like This'),
+      '#tree' => TRUE,
+      '#collapsible' => TRUE,
+      '#collapsed' => FALSE,
+    );
+
+    if(variable_get('morelikethis_calais_default', FALSE)) {
+      $form['morelikethis']['prefill-with-calais']= array(
+        '#type' => 'checkbox',
+        '#title' => t('Prefill from Calais'),
+        '#default_value' => isset($node->morelikethis['prefill-with-calais']) ? 
+          $node->morelikethis['prefill-with-calais'] : TRUE,
+        '#description' => t('When checked, the More Like This terms will default to all Calais terms that have a relevance score of @score or greater. You can configure this value in the !settings.', array('@score' => variable_get("morelikethis_calais_relevance", MORELIKETHIS_DEFAULT_RELEVENCE), '!settings' => l('MoreLikeThis settings page', 'admin/settings/morelikethis'))),
+      );
+    }
+
+    $terms = drupal_implode_tags(morelikethis_load($node->vid));
+    $form['morelikethis']['terms'] = array(
+      '#type' => 'textfield',
+      '#title' => t('More Like This Terms'),
+      '#description' => t('A comma-separated list of terms that will be used as the "identity" of this content item to find more content that is like this. You can select existing taxonomy terms form the list below, or enter in your own manually. Example: election, stock market, "Company, Inc.".'),
+      '#maxlength' => 512,
+      '#default_value' => $terms,
+    );
+
+    if(!empty($options)) {
+      $form['morelikethis']['taxonomy-terms'] = array(
+        '#type' => 'select',
+        '#title' => t('Choose existing terms'),
+        '#description' => t('Selecting terms will put them in the above textfield.'),
+        '#size' => 5,
+        '#options' => $options,
+      );
+    }   
+    
+    $services = _morelikethis_providers();
+    $options = array();
+    foreach($services as $key => $service){
+      $options[$key] = $service['#title'];
+    }
+    
+    $contribs_enabled = (!empty($node->morelikethis['enabled-contribs']) ? $node->morelikethis['enabled-contribs'] : array_keys($options));
+    
+    $form['morelikethis']["enabled-contribs"] = array(
+      '#type' => 'checkboxes',
+      '#title' => t('Enable the following Contributed modules for morelikethis'),
+      '#default_value' => $contribs_enabled,
+      '#options' => $options,
+      '#description' => t('Override module configuration made at the content type-level for this particular node (content-type level changes can be made on the !settings)', array('!settings' => l('MoreLikeThis settings page', 'admin/settings/morelikethis'))),
+    );
+  }
+}
+
+// Check if this type is enabled for any service.
+function _morelikethis_is_enabled($type) {
+  $services = _morelikethis_providers();
+
+  foreach ( $services as $definition ) {
+    $class = $definition['#class'];
+    $impl = new $class;
+    if ($impl->isEnabled($type)) {
+      return TRUE;
+    }
+  }
+  
+  return FALSE;
+}
+
+/**
+ * determine if this node is allowed to use the service
+ *
+ * @param unknown_type $node
+ * @param unknown_type $service
+ * @return boolean
+ */
+function _morelikethis_node_enabled($node, $service) {
+  if(!empty($node->morelikethis['enabled-contribs']))
+    return in_array($service, $node->morelikethis['enabled-contribs'], true);
+  
+  return true;
+}
+
+/**
+ * Implementation of hook_nodeapi().
+ */
+function morelikethis_nodeapi(&$node, $op) {
+  switch ($op) {
+    case 'insert':
+    case 'update':
+    	if(property_exists($node, 'morelikethis')) {
+    	  _morelikethis_set_calais_defaults($node);
+        morelikethis_save($node, $node->morelikethis);
+      }
+      break;
+    case 'delete':
+      db_query('DELETE FROM {morelikethis} WHERE nid = %d', $node->nid);
+      db_query('DELETE FROM {morelikethis_node_settings} WHERE vid = %d', $node->vid);
+      break;
+    case 'load':  
+    case 'prepare':
+      $mlt_node_settings = _morelikethis_get_node_settings($node->vid);
+      _morelikethis_set_node_settings($node, $mlt_node_settings);
+    	break;
+  }
+}
+
+/**
+ * Builds the morelikethis property for a node.
+ *
+ * @param $node
+ *    The node to add a property that contains More Like This data.
+ * @param $more
+ *    An array of More Like This data for the provided node.
+ */
+function _morelikethis_build_node_properties(&$node, $more) {
+  $node->morelikethis = array();
+  foreach($more as $key => $items) {
+    if($items) {
+      foreach($items as $item) {
+        $entry = array(
+          '#item' => $item,
+          '#view' => theme(array("morelikethis_{$key}_item", 'morelikethis_item'), $item),
+        );
+        $node->morelikethis[$key][] = $entry;
+      }
+    }
+  }
+}
+
+/**
+ * Look up the enabled contrib modues for this node.
+ *
+ * @param unknown_type $vid
+ * @return array or NULL
+ */
+//function _morelikethis_get_enabled_contribs($vid) {
+function _morelikethis_get_node_settings($vid) {
+  $result = db_query("SELECT * FROM {morelikethis_node_settings} WHERE vid = %d", $vid);
+  $found = db_fetch_object($result);
+  if($found) {
+    return $found;
+  }
+  return NULL;
+}
+
+/**
+ * Set the enabled contrib modules
+ *
+ * @param unknown_type $node
+ * @param array $enabled
+ */
+//function _morelikethis_set_enabled_contribs(&$node, $settings) {
+function _morelikethis_set_node_settings(&$node, $settings) {
+  $node->morelikethis['enabled-contribs'] = unserialize($settings->contribs_enabled);    
+  $node->morelikethis['prefill-with-calais'] = $settings->prefill_with_calais;    
+}
+
+/**
+ * Theme the body of the More Like This block.
+ *
+ * @param $items
+ *    An array of More Like This objects for the provided node.
+ */
+function theme_morelikethis_block($items){
+  if(!$items)
+    return t('No related items were found.');
+  
+  $links = array();
+  foreach($items as $item){
+    $links[] = theme(array("morelikethis_{$item->mlt_type}_item", 'morelikethis_item'), $item);
+  }
+  return theme('item_list', $links);
+}
+
+/**
+ * Theme an individual morelikethis item.
+ *
+ * @param $item
+ *    An More Like This object for the provided node.
+ */
+function theme_morelikethis_item($item) {
+  return l("$item->title", $item->url);
+}
+
+// Calais Integration
+
+/**
+ * Pre-populate MLT terms based on relevant Calais terms
+ */
+function _morelikethis_set_calais_defaults(&$node) {
+
+  if($node->morelikethis['prefill-with-calais']) {
+    $node->morelikethis['terms'] = _mlt_get_calais_defaults($node);
+  }
+}
+
+/**
+ * Return the calais defaults for the current node. Filter out the EventType vocabulary 
+ * since it is not really relevant.
+ */
+function _mlt_get_calais_defaults($node) {
+  $threshold =  variable_get("morelikethis_calais_relevance", MORELIKETHIS_DEFAULT_RELEVANCE);
+  $keywords = calais_get_keywords($node->nid, $node->type, NULL, $threshold);
+
+  $vocabs = calais_get_entity_vocabularies();
+  
+  $defaults = array();
+  foreach ($keywords as $vid => $terms) {
+    if($vid != $vocabs['EventsFacts'] && $vid != $vocabs['CalaisDocumentCategory']) {
+      $defaults = array_merge($defaults, $terms);
+    }
+  }
+  
+  usort($defaults, '_mlt_relevance_sort');
+  $terms = array();
+  foreach ($defaults as $term) {
+    $terms[] = $term->name;
+  }
+  return drupal_implode_tags($terms);
+}
+
+function _mlt_relevance_sort($a, $b) {
+  if ($a->relevance == $b->relevance) {
+      return 0;
+  }
+  return ($a->relevance > $b->relevance) ? -1 : 1;
+}
+

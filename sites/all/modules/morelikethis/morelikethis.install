@@ -1,0 +1,176 @@
+<?php
+/*
+  Copyright (C) 2008 by Phase2 Technology.
+  Author(s): Frank Febbraro
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY. See the LICENSE.txt file for more details.
+
+  $Id: morelikethis.install,v 1.1.2.6 2009/01/16 20:32:23 emackn Exp $
+ */
+/**
+ * @file
+ */
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function morelikethis_uninstall() {
+  drupal_uninstall_schema('morelikethis');
+  drupal_uninstall_schema('morelikethis_node_settings');
+}
+
+/**
+ * Implementation of hook_install().
+ */
+function morelikethis_install() {
+  drupal_install_schema('morelikethis');
+  
+  // Module weights: put after something like calais (which is 10)
+  db_query("UPDATE {system} SET weight = 15 WHERE name = 'morelikethis'");
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function morelikethis_schema() {
+  
+  $schema['morelikethis'] = array(
+    'description' => 'Data associated with More Like This thumbprint for nodes',
+    'fields' => array(
+      'vid' => array(
+        'type' => 'int', 
+        'unsigned' => TRUE, 
+        'not null' => TRUE, 
+        'default' => 0,
+        'description' => t('The node revision id')
+      ),
+      'nid' => array(
+        'type' => 'int', 
+        'unsigned' => TRUE, 
+        'not null' => TRUE, 
+        'default' => 0,
+        'description' => t('The node id')
+      ),
+      'term' => array(
+        'type' => 'varchar', 
+        'length' => 255, 
+        'description' => t('The term used for lookup')
+      ),
+    ),
+    'indexes' => array(
+      'nid' => array('nid'),
+      'vid' => array('vid'),
+    ),
+  );
+  
+  $schema['morelikethis_node_settings'] = array(
+    'descripiton' => 'Settings for which morelikethis contributed modules are enabled for a node instance.',
+    'fields' => array(
+      'vid' => array(
+        'type'=> 'int', 
+        'unsigned'=> TRUE, 
+        'not null'=>TRUE, 
+        'default' => 0, 
+        'description' => t('The node revision id')
+      ),
+      'nid' => array(
+        'type' => 'int', 
+        'unsigned' => TRUE, 
+        'not null' => TRUE, 
+        'default' => 0,
+        'description' => t('The node id')
+      ),
+      'contribs_enabled' => array(
+        'type' => 'text',
+        'size' => 'big',
+        'description' => t('Serialized array of the keys to enable for this nod.')      
+      ),      
+      'prefill_with_calais' => array(
+        'type' => 'int', 
+        'size' => 'tiny',
+        'unsigned' => TRUE, 
+        'not null' => FALSE, 
+        'default' => 1,
+        'description' => t('Does this item use its own terms, or get prefilled by calais')
+      ),
+    ),
+
+    'indexes' => array(
+      'nid' => array('nid'),
+    ),
+    'primary key' => array('vid'),
+  );
+  
+  return $schema;
+}
+
+function morelikethis_update_6100() {
+  $schema['morelikethis_node_settings'] = array(
+    'descripiton' => 'Settings for which morelikethis contributed modules are enabled for a node instance.',
+    'fields' => array(
+      'vid' => array(
+        'type'=> 'int', 
+        'unsigned'=> TRUE, 
+        'not null'=>TRUE, 
+        'default' => 0, 
+        'description' => t('The node revision id')
+      ),
+      'nid' => array(
+        'type' => 'int', 
+        'unsigned' => TRUE, 
+        'not null' => TRUE, 
+        'default' => 0,
+        'description' => t('The node id')
+      ),
+      'contribs_enabled' => array(
+        'type' => 'text',
+        'size' => 'big',
+        'description' => t('Serialized array of the keys to enable for this nod.')      
+      ),      
+    ),
+
+    'indexes' => array(
+      'nid' => array('nid'),
+    ),
+    'primary key' => array('vid'),
+  );
+  
+  $ret = array();
+  db_create_table($ret, 'morelikethis_node_settings', $schema['morelikethis_node_settings']);
+  return $ret;
+}
+
+function morelikethis_update_6101() {
+  $prefill = array(
+    'type' => 'int', 
+    'size' => 'tiny',
+    'unsigned' => TRUE, 
+    'not null' => FALSE, 
+    'default' => 0,
+    'description' => t('Does this item use its own terms, or filled by calais')
+  );
+  
+  $ret = array();
+  db_add_field($ret, 'morelikethis_node_settings', 'prefill_with_calais', $prefill);
+  return $ret;
+
+}
+
+function morelikethis_update_6102() {
+  $ret = array();
+  db_field_set_default($ret, 'morelikethis_node_settings', 'prefill_with_calais', 1);
+  return $ret;
+}
+
+function morelikethis_update_6103() {
+  $ret = array();
+  $ret[] = update_sql('UPDATE {morelikethis_node_settings} SET prefill_with_calais = 1');
+  return $ret;
+}
+
+
+
+

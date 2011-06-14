@@ -1,0 +1,48 @@
+<?php
+// $Id: premium.install,v 1.5 2009/01/13 19:16:42 jerdavis Exp $
+
+/**
+ * Implementation of hook_install().
+ */
+function premium_install() {
+  drupal_install_schema('premium');
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function premium_schema() {
+  $schema['premium'] = array(
+    'fields' => array(
+      'nid' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'disp-width' => '11',
+      ),
+      'start_ts' => array(
+        'type' => 'int',
+        'not null' => FALSE,
+        'disp-width' => '11',
+      ),
+      'end_ts' => array(
+        'type' => 'int',
+        'not null' => FALSE,
+        'disp-width' => '11',
+      ),
+    ),
+    'primary key' => array('nid'),
+  );
+  return $schema;
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function premium_uninstall() {
+  drupal_uninstall_schema('premium');
+  variable_del('premium_mode');
+  variable_del('premium_time_count');
+  variable_del('premium_time_unit');
+  variable_del('premium_message');
+  variable_del('premium_format');
+}

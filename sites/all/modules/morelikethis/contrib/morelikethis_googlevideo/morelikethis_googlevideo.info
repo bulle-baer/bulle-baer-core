@@ -1,0 +1,12 @@
+; $Id $
+name = MLT - Google Video
+package = "More Like This"
+description = "Provides a lookup for Google Video"
+core = 6.x
+dependencies[] = morelikethis 
+; Information added by drupal.org packaging script on 2009-02-23
+version = "6.x-1.1"
+core = "6.x"
+project = "morelikethis"
+datestamp = "1235395233"
+

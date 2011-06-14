@@ -1,0 +1,403 @@
+
+*
+{
+	font-family: Arial, Verdana !important;
+}
+
+
+#wrapper
+{
+	padding: 0 10px 10px !important;
+}
+
+#logo
+{
+	margin-left: 220px;
+	padding: 5px 0 0 !important;
+}
+
+
+#logo-area
+{
+	background: #132C40 !important;
+}
+
+
+#top-menu
+{
+	border-top-color: #132C40 !important;
+}
+
+
+#nav ul.primary-links li a.active
+{
+	background: #132C40 !important;
+}
+
+
+#nav li.off ul, #nav li.on ul
+{
+	background: #132C40 !important;	
+}
+
+
+#nav ul.primary-links li.first-level.on
+{	
+	background: #132C40 !important;
+}
+
+
+#nav
+{
+	border-width: 0 1px 1px 0 !important;
+}
+
+
+input.form-submit, a.button
+{
+	background: #CCC6BE !important;
+	color: #132C40 !important;
+}
+
+
+body.front-page #op-content
+{
+	margin-left: 0 !important;
+    padding: 0 0 0 10px !important;
+	width: 630px !important;
+}
+
+body #container
+{
+    background-image: url("/sites/all/themes/openpublish_theme/images/bkg/bg-3col.png") !important;
+}
+
+body.sidebar-right #center
+{
+	padding: 0 0 0 10px !important;
+}
+
+.featured-view-item
+{
+	background-color: #F8F8F8 !important;
+}
+
+
+.featured-view-item .views-field-title
+{
+    font-size: 1.6em !important;
+    margin-left: 110px !important;
+}
+
+#block-views-articles-block_2 .views-field-field-teaser-value p,
+.featured-view-item .views-field-field-teaser-value p
+{
+    margin: 0 !important;
+}
+
+.views-field-field-teaser-value p
+{
+    margin: 20px 0 0 0 !important;
+}
+
+.featured-view-item .views-field-field-main-image-fid img
+{
+	margin-top: 30px !important;
+}
+
+p img
+{
+	margin: 0 !important;
+}
+
+#sidebar-right
+{
+    width: 300px !important;
+}
+
+h2
+{
+	font-size: 1em !important;
+	font-style: normal !important;
+	letter-spacing: 0 !important;
+}
+
+.sidebar h2
+{
+    padding: 0 !important;
+    letter-spacing: normal !important;
+}
+
+#block-views-articles-block_2
+{
+	background-color: #F8F8F8 !important;
+    border: 1px solid #D9D9D9 !important;
+    padding: 15px 15px 0 !important;
+}
+
+#block-views-articles-block_2 .views-separator
+{
+    border: none !important;
+    margin: 0 !important;
+}
+    
+.views-field-field-main-image-fid-1
+{
+	float: left;
+	width: 270px !important;
+}
+
+.views-field-field-main-image-fid-1 img
+{
+	height: 195px !important;
+	width: 260px !important;
+}
+
+
+#nav ul.primary-links li.first-level a:hover,
+#nav ul.primary-links li:hover ul, #nav ul.primary-links li.over ul,
+div#nav li.off a:hover, div#nav li:hover a, div#nav li.over a,
+#nav li.off li a:hover, #nav li:hover li a,
+#nav ul.primary-links ul.second-level li a:hover
+{
+	background-color: #132C40 !important;
+	color: #FFFFFF !important;
+}
+
+
+#block-block-4, #block-block-5
+{
+    background: #FFFFFF !important;
+    border: 1px solid #DFDFDF !important;
+    height: 250px !important;
+    margin: 10px 0 30px;
+    padding: 0 !important;
+    width: 298px !important;
+}
+#block-block-4 *, #block-block-5 *
+{
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 298px !important;
+}
+
+
+/*** RSS Nachrichten Block ***/
+
+.view-AggregatorListView .view-header
+{
+	background-color: #132C40;
+    padding: 10px;
+}
+
+
+.view-AggregatorListView .view-header h2
+{
+    color: #FFFFFF;
+    font-weight: bold;
+}
+
+.view-AggregatorListView .views-field-timestamp
+{
+	color: #760C29 !important;
+    font-size: 0.917em !important;
+}
+
+.view-AggregatorListView .views-field-title a
+{
+	color: #000000 !important;
+    font-size: 13px !important;
+}
+
+.block-aggregator h2
+{
+	font-size: 1.3em !important;
+}
+
+.block-aggregator .item-list .icon
+{
+	padding-left: 50px !important;
+}
+
+/*** Footer Bereich ***/
+
+#footer
+{
+	border-top: 1px solid #999999 !important;
+}
+
+#footer-links-wrapper
+{
+	width: 100% !important;
+}
+
+#footer-menu-primary
+{
+    font-size: 0.75em !important;
+}
+
+#footer-feed-icon
+{
+	float: right !important;
+}
+
+
+
+/*** Newsletter Formular ***/
+
+.newsletter_registration
+{
+	margin: 5px 0 20px 0;
+}
+
+.newsletter_input_hidden_box
+{
+	height: 2px;
+}
+
+#id_c_submit
+{
+	background-color: #132C40;
+	border: 1px solid #132C40;
+	color: #FFFFFF;
+	font-weight: bold;
+	height: 27px;
+	width: 75px;
+}
+
+#id_c_email
+{
+	background-color: #FFFFFF;
+	border: 1px solid #BFBFBF;
+	color: #DFDFDF;
+	float: left;
+	height: 25px;
+	padding: 0 5px;
+	margin: 0;
+	width: 210px;
+}
+
+
+
+/*** Facebook Likebox ***/
+
+.fb_likebox_head
+{
+	background-color: #132C40;
+	font-weight: bold;
+	padding: 10px;
+	width: 280px;
+}
+
+.fb_likebox_head h2
+{
+	color: #FFFFFF !important;
+}
+
+
+
+/*** Oanda Box ***/
+
+#oanda_ecc
+{
+	margin-top 10px;
+}
+
+#oanda_ecc p
+{
+	height: 1px;
+    visibility: hidden;
+}
+
+
+
+/*** Artikel ***/
+
+.field-content h2
+{
+	font-size: 1.3em !important;
+}
+
+
+
+/*** Feeds ***/
+.item-list ul li
+{
+	margin: 0 0 1em 1.5em !important;
+}
+
+
+
+/*** Landing Pages ***/
+p.landing_message
+{
+	border-style: solid;
+	border-width: 1px;
+	margin-top: 20px;
+	padding: 20px;
+	text-align: center;
+}
+
+#landing_error.landing_message
+{
+	background-color: #FFDDDD;
+	border-color: #FF8888;
+}
+
+#landing_optin.landing_message, #landing_welcome.landing_message
+{
+	background-color: #EEFFEE;
+	border-color: #AAFFAA;
+}
+
+#landing_thanks.landing_message
+{
+	background-color: #EEF8FF;
+	border-color: #AACCFF;
+}
+
+
+
+/*** Currency + Resource Table ***/
+
+.currency_table, .resources_table
+{
+	border: none;
+	border-collapse: separate;
+	border-spacing: 30px;
+	width: 600px;
+}
+
+.currency_table th, .resources_table th
+{
+	border: none;
+	text-align: center;
+}
+
+.resources_table_block_head, .currencys_table_block_head
+{
+	font-size: 14px;
+	padding: 30px 0 0 0 !important;
+}
+
+.currency_table img
+{
+	height: 188px;
+	width: 225px;
+}
+
+.resources_table img 
+{
+	height: 143px;
+	width: 215px;
+}
+
+
+
+/*** Currency + Resource Table ***/
+
+#lightbox span#caption
+{
+	font-size: 12px !important;
+}
+

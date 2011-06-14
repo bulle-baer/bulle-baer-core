@@ -1,0 +1,49 @@
+<?php 
+
+/**
+* @file
+* Drupal Module: Quantcast
+*
+* Provides integration with Quantcast.com. 
+*
+* @Author: Irakli Nadareishvili. <a href="http://phase2technology.com">Phase2 Technology</a>
+*/
+
+
+/** 
+* hook_perm implementation
+*/ 
+function quantcast_perm() {
+  return array('administer quantcast');
+}
+
+/**
+* hook_menu() implementation
+*/
+function quantcast_menu() {
+
+  $items['admin/settings/quantcast'] = array(
+    'title' => 'Quantcast',
+    'description' => 'Configure the settings for Quantcast.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('quantcast_admin_settings_form'),
+    'access arguments' => array('administer quantcast'),
+    'file' => 'quantcast.admin.inc',
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+function quantcast_footer($main = 0) {
+  
+  $snippet = variable_get('quantcast_tag', '');
+    
+  if (!empty($snippet)) {
+    return $snippet;
+  }
+  else {
+    return '';
+  }
+}
+

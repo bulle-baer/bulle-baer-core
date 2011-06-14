@@ -1,0 +1,21 @@
+name = BullBear
+description = BullBear is a customized Theme for "Bulle & Baer"
+base theme = openpublish_theme
+version = VERSION
+core = 6.x
+engine = phptemplate
+ 
+; SubTheme-Specific CSS
+stylesheets[all][]   = css/bullbear-main.css
+stylesheets[all][]   = css/bullbear-newsletter.css
+stylesheets[all][]   = css/bullbear-rss.css
+ 
+; Print-version styles
+stylesheets[print][] = css/bullbear-print.css
+ 
+regions[left] = Left Sidebar
+regions[right] = Right Sidebar
+regions[over_content] = On Top of Content
+regions[under_content] = Underneath the Content
+regions[header] = Header
+regions[footer] = Footer

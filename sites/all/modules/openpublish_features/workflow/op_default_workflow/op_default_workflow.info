@@ -1,0 +1,19 @@
+core = "6.x"
+dependencies[] = "ctools"
+dependencies[] = "features"
+dependencies[] = "workflow"
+description = "OpenPublish Default Workflow"
+features[ctools][] = "workflow:workflow:1"
+features[user_permission][] = "access workflow summary views"
+features[user_permission][] = "administer workflow"
+features[user_permission][] = "schedule workflow transitions"
+features[workflows][] = "op_default_workflow"
+name = "OP Default Workflow"
+package = "Features"
+
+; Information added by drupal.org packaging script on 2010-12-03
+version = "6.x-1.18"
+core = "6.x"
+project = "openpublish_features"
+datestamp = "1291420542"
+

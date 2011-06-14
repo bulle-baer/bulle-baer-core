@@ -1,0 +1,7 @@
+<?php
+
+function premium_views_field_views_api() {
+  return array(
+    'api' => 2,
+  );
+}

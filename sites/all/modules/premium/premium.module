@@ -1,0 +1,341 @@
+<?php 
+// $Id: premium.module,v 1.17 2009/01/13 19:16:42 jerdavis Exp $
+
+/**
+ * @file Restrict access to the full body of premium content
+ */
+
+/**
+ * Implementation of hook_menu()
+ */
+function premium_menu() {
+  $items = array();
+  $items['admin/settings/premium'] = array(
+    'title' => 'Premium',
+    'description' => 'Settings for access control to premium content.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('premium_settings'),
+    'access arguments' => array('administer site configuration'),
+  );
+  return $items;
+}
+ 
+/**
+ * Implementation of hook_perm()
+ */
+function premium_perm() {
+  return array('access premium content');
+}
+
+/**
+ * Implementation of hook_cron()
+ */
+function premium_cron() {
+  $ts = time();
+  db_query("DELETE FROM {premium} WHERE start_ts < %d AND end_ts <> 0 AND end_ts < %d", $ts, $ts);
+}
+
+/**
+ * Implementation of hook_nodeapi()
+ */
+function premium_nodeapi(&$node, $op, $teaser) {
+  $node->premium = _premium_node($node);
+  $node->premium_access = _premium_access($node, $teaser);
+
+  switch ($op) {
+    case 'load':
+      return array(
+        'premium' => $node->premium,
+        'premium_access' => $node->premium_access);
+    
+    case 'insert':
+    case 'delete':
+    case 'update': 
+      _premium_set_premium($node, $node->premium);
+      return;
+      
+    case 'view':
+      if (!$node->premium_access) {
+        $node->content['body']['#value'] = theme('premium_body', $node);
+      }
+      return;
+  }
+  return;
+} 
+
+/**
+ * Implementation of hook_node_operations().
+ */
+function premium_node_operations() {
+  $operations = array(
+    'premium' => array(
+      'label' => t('Set premium status'),
+      'callback' => '_premium_node_operations_premium',
+      'callback arguments' => array(1),
+    ),
+    'unpremium' => array(
+      'label' => t('Remove premium status'),
+      'callback' => '_premium_node_operations_premium',
+      'callback arguments' => array(0),
+    ),
+  ); 
+  return $operations;
+}
+
+/**
+ * Callback for hook_node_operations()
+ */
+function _premium_node_operations_premium($nids, $premium = 0) {
+  foreach ($nids as $nid) {
+    $node = node_load($nid);
+    _premium_set_premium($node, $premium);
+  }
+}
+
+/**
+ * Implementation of hook_form_alter()
+ * 
+ * Add the Premium checkbox to the node editing options and default settings
+ * The Premium flag will behave like other options (published, promote, etc)
+ */
+function premium_form_alter(&$form, $form_state, $form_id) {
+  $type = $form['type']['#value'];
+  $title = t('Access restricted for non-premium users');
+  switch ($form_id) {
+    
+    case 'node_type_form':
+      $form['workflow']['node_options']['#options']['premium'] = $title;
+      if (_premium_node($type)) {
+        $form['workflow']['node_options']['#default_value'][] = 'premium';
+      }
+      return;
+      
+    case $type .'_node_form':
+      if (user_access('administer nodes')) {
+        $node = $form['#node'];
+        $form['options']['premium'] = array(
+          '#type' => 'checkbox', 
+          '#title' => $title, 
+          '#default_value' => _premium_node($node),
+        );
+      }
+      return;
+  }
+}
+
+/**
+ * Settings form
+ */
+function premium_settings() {
+  $form = array();
+  $form['#validate'] = array('premium_settings_validate'); 
+
+  $premium_types = array();
+  foreach (node_get_types('names') as $type => $value) {
+    if (_premium_node($type)) {
+      $premium_types[$type] = $type; 
+    } 
+    else {
+      $premium_types[$type] = 0;
+    }
+  }
+
+  $form['premium_node_types'] = array(
+    '#type' => 'checkboxes',
+    '#options' => node_get_types('names'),
+    '#title' => t('Node Types'),
+    '#default_value' => $premium_types,
+  );
+
+  // timeframe for premium + update existing nodes
+  $form['premium_mode'] = array(
+    '#type'          => 'radios', 
+    '#title'         => t('Mode'), 
+    '#default_value' => variable_get('premium_mode', '0'), 
+    '#options'       => array(
+      '0' => t('Premium items are permanently restricted'), 
+      'archive' => t('Protect archives only: Items switch to premium status after a specified period'), 
+      'latest' => t('Protect latest content only: Items switch to non-premium status after a specified period'), 
+    ),
+  );
+  
+  $options = (range(0, 15));
+  unset($options[0]);
+  $form['premium_time_count'] = array(
+    '#type'          => 'select', 
+    '#title'         => t('Count'), 
+    '#default_value' => variable_get('premium_time_count', '2'), 
+    '#options'       => $options,
+  );
+  
+  $form['premium_time_unit'] = array(
+    '#type'          => 'select', 
+    '#title'         => t('Unit'), 
+    '#default_value' => variable_get('premium_time_unit', 'W'), 
+    '#options'       => array('D' => t('Days'), 
+        'W' => t('Weeks'), 
+        'M' => t('Months'), 
+        'Y' => t('Years')), 
+  );
+
+  $form['premium_bulk_update'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Bulk update premium status'),
+    '#description' => t('Update all existing nodes of the types selected above with the new premium settings.'),
+  );
+  
+  $form['premium_message'] = array(
+    '#type'          => 'textarea', 
+    '#title'         => t('Premium body text'), 
+    '#default_value' => variable_get('premium_message', t('Full text available to premium subscribers only')), 
+    '#cols'          => 60, 
+    '#rows'          => 15, 
+    '#description'   => t('When a visitor doesn\'t have access to a premium item they will see this message instead of its full text')
+  );
+
+  if (module_exists('filter')) {
+    $form['premium_format'] = filter_form(variable_get('premium_format', FILTER_FORMAT_DEFAULT), NULL, array('premium_format'));
+  }
+  return system_settings_form($form);
+}
+
+/**
+ * Save premium status as set on admin/settings/premium to each type 
+ */
+function premium_settings_validate($form, &$form_state) {
+  $count = $form_state['values']['premium_time_count'];
+  $unit  = $form_state['values']['premium_time_unit'];
+  $mode  = $form_state['values']['premium_mode'];
+  $types = $form_state['values']['premium_node_types'];
+
+  foreach ($types as $type => $premium) {
+    $node_options = variable_get('node_options_'. $type, array());
+    if (in_array('premium', $node_options)) {
+      $premium_key = array_search('premium', $node_options);
+      unset($node_options[$premium_key]);
+    }
+    if ($types[$type]) { 
+      $node_options = array_merge($node_options, array('premium'));
+      $premium_types[] = $types[$type];
+    } 
+    variable_set('node_options_'. $type, $node_options);
+  }
+  
+  if ($form_state['values']['premium_bulk_update']) {
+    db_query("DELETE from {premium}");
+
+    foreach ($premium_types as $type) {
+      $start = $end = 0;
+      _premium_offset(0, $start, $end, $mode, $count, $unit);
+      // Apply the timestamp delta's to the node's created date.
+      if ($start) $start = 'created + '. (int) $start;
+      if ($end) $end = 'created + '. (int) $end;
+
+      db_query("INSERT INTO {premium} (nid, start_ts, end_ts)
+        SELECT nid, $start, $end FROM {node} WHERE type = '%s'", $type);
+     }
+  }
+}
+
+/**
+ * Calculate time offset for auto-aging / auto-archiving
+ */
+function _premium_offset($timestamp, &$start_ts, &$end_ts, $mode, $count, $unit) {
+
+  // If the timestamp is zero, set it to "now" so mktime() will work properly.
+  $ts = $timestamp ? $timestamp : time();
+  $offset = mktime(
+    date('H', $ts)+($unit=='H')*$count, 0, 0, 
+    date('m', $ts)+($unit=='M')*$count,
+    date('d', $ts)+($unit=='D')*$count+($unit=='W')*$count*7, 
+    date('y', $ts)+($unit=='Y')*$count
+  );
+
+  // If we faked a timestamp, remove it.
+  if ($ts != $timestamp) $offset -= $ts; 
+
+  if ($mode == 'archive') $start_ts = $offset;
+  if ($mode == 'latest') $end_ts = $offset;
+  return;
+}
+
+/**
+ * Establish premium settings for a node or node type
+ */
+function _premium_node($node) {
+  // This is a node type: use default settings
+  if (is_string($node)) {
+    return in_array('premium', variable_get("node_options_{$node}", array()));
+  }
+
+  // Already has a value.
+  if (isset($node->premium)) return $node->premium;
+
+  if ($node->nid) {
+    // Attempt to find the value from the premium table.
+    return (int) db_result(db_query("SELECT 1 FROM {premium}  WHERE nid = %d
+      AND (( start_ts = 0 and end_ts > %d)
+      OR ( start_ts < %d AND end_ts = 0)
+      OR ( start_ts = 0 AND end_ts = 0))", $node->nid, time(), time()));
+  }
+
+  // Use default settings for this node type.
+  return in_array('premium', variable_get("node_options_{$node->type}", array()));
+}
+
+/**
+ * Establish premium visibility settings for a node
+ */
+function _premium_access($node, $teaser) {
+  if (isset($node->premium_access)) return $node->premium_access;
+
+  // Access is granted or revoked explicitly.
+  foreach (module_implements('premium_access') as $name) {
+    $function = $name .'_premium_access';
+    if (is_bool($access = $function($user, $node))) {
+      return $access;
+    }
+  }
+
+  // Not viewing the body, or it's not premium, or user has privileges.
+  if ($teaser || !$node->premium || user_access('access premium content')) {
+    return TRUE;
+  }
+
+  // Nobody said we could access the node. 
+  return FALSE;
+}
+ 
+/**
+ * Update the premium table with appropriate premium values for a node.
+ */
+function _premium_set_premium($node, $premium = FALSE) {
+  db_query('DELETE FROM {premium} WHERE nid = %d', $node->nid);
+  if ($premium) {
+    $start_ts = $end_ts = 0 ;
+    $mode = variable_get('premium_mode', 0);
+    $count = variable_get('premium_time_count', 2);
+    $unit = variable_get('premium_time_unit', 'W');
+    _premium_offset($node->created, $start_ts, $end_ts, $mode, $count, $unit);
+    db_query('INSERT INTO {premium} (nid, start_ts, end_ts) 
+              VALUES ( %d, %d, %d )', $node->nid, $start_ts, $end_ts);
+  }
+}
+
+/**
+ * Implementation of hook_theme().
+ */
+function premium_theme() {
+  return array(
+    'premium_body' => array(
+      'arguments' => array('node' => NULL),
+    ),
+  );
+}
+
+/**
+ * Reformat the message body with a premium content message
+ */
+function theme_premium_body($node) {
+  return check_markup($node->teaser, $node->format, FALSE) .'<div class="premium-message">'. check_markup(variable_get('premium_message', t('Full text available to premium subscribers only')), variable_get('premium_format', FILTER_FORMAT_DEFAULT), FALSE) .'</div>';
+}

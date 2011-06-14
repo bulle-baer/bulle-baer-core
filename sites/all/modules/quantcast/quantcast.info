@@ -1,0 +1,12 @@
+; $Id: quantcast.info,v 1.1 2009/07/07 04:34:09 inadarei Exp $
+name = Quantcast
+description = Integration with quantcast.com.
+package = Other
+core = 6.x
+
+; Information added by drupal.org packaging script on 2009-09-02
+version = "6.x-1.2-beta3"
+core = "6.x"
+project = "quantcast"
+datestamp = "1251857154"
+

@@ -1,0 +1,27 @@
+;$Id: CHANGELOG.txt,v 1.1.4.13 2011/01/18 21:55:13 zuuperman Exp $
+
+6.x.1-0
+-------
+Port of imagecrop to Drupal 6
+- #325318 by neochief: crop actions don't catch presetid if files directory is not default.
+- #325314 by neochief: Option to skip javascript crop if no region is found from database.
+- testing
+
+6.x.1.-1
+--------
+
+- #948202 by Cyberwolf: reversed aspect ratio is used
+- Added support for Image FUpload
+- Added support for profile picture
+- Added indexes to schema
+
+6.x.1.-2
+
+- #992610 by wojtha: Bad arguments in watchdog function call
+- #988498 by boardyuk: Aspect ratio is backwards for crop
+
+6.x.1.-3
+- Make it possible to hide the scale option, also don't show it when only 1 option is availabl
+- #1031356 by tacituseu Out of range value adjusted for column 'yoffset'
+- #1028732 delete temp imagecache file after saving
+- #591026 Crop preview box not updating on drag when one dimension equals original image
